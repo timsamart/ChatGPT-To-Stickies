@@ -1,3 +1,5 @@
+import { parseNotes } from "./utils";
+
 figma.showUI(__html__, { themeColors: true, height: 300 });
 
 let nodes = []; // Declare nodes at higher scope
@@ -6,9 +8,7 @@ figma.ui.onmessage = async (msg) => {
   if (msg.type === "paste-notes") {
     figma.showUI(__html__, { visible: true });
   }
-};
 
-figma.ui.onmessage = async (msg) => {
   if (msg.type === "notes") {
     let notes = msg.notes;
     let maxCol = msg.maxCol; // This should be sent from your UI
@@ -67,30 +67,3 @@ figma.ui.onmessage = async (msg) => {
     });
   }
 };
-
-// Parser function
-function parseNotes(notes: string): { title: string; content: string }[] {
-  const lines = notes.split("\n");
-  let entries = [];
-
-  lines.forEach((line) => {
-    line = line.trim().replace(/\*\*/g, ""); // Trim spaces and remove **
-
-    if (!line) {
-      // Skip empty lines
-      return;
-    }
-
-    if (line.includes(":")) {
-      // Title: Content structure
-      const parts = line.split(":");
-      const entry = {
-        title: parts[0].trim(),
-        content: parts.slice(1).join(":").trim(),
-      };
-      entries.push(entry);
-    }
-  });
-
-  return entries;
-}
