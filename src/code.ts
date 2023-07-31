@@ -1,6 +1,6 @@
 import { parseNotes } from "./utils";
 
-figma.showUI(__html__, { themeColors: true, height: 300 });
+figma.showUI(__html__, { themeColors: true, height: 600, width: 300 });
 
 let nodes = []; // Declare nodes at higher scope
 
@@ -20,6 +20,7 @@ figma.ui.onmessage = async (msg) => {
 
     let row = 0;
     let col = 0;
+    let maxHeightInRow = 0; // To keep track of the maximum height in each row
     const padding = 50; // Padding between stickies
 
     entries.forEach(async (entry) => {
@@ -51,9 +52,16 @@ figma.ui.onmessage = async (msg) => {
         16
       );
 
+      const stickyHeight = stickyNode.height;
+
+      // Update maxHeightInRow if the current sticky's height is greater
+      if (stickyHeight > maxHeightInRow) {
+        maxHeightInRow = stickyHeight;
+      }
+
       // Set position based on grid
       stickyNode.x = col * (stickyNode.width + padding);
-      stickyNode.y = row * (stickyNode.height + padding);
+      stickyNode.y = row * (maxHeightInRow + padding);
 
       figma.currentPage.appendChild(stickyNode);
       nodes.push(stickyNode);
@@ -63,6 +71,7 @@ figma.ui.onmessage = async (msg) => {
       if (col >= maxCol) {
         row++;
         col = 0;
+        maxHeightInRow = 0; // Reset maxHeightInRow for the next row
       }
     });
   }

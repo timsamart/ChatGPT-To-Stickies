@@ -26,22 +26,17 @@ function App() {
   return (
     <main>
       <header>
-        <h1>📝 ChatGPT to Stickies</h1>
-        <img
-          src={require("./logo.svg")}
-          className="logo"
-          alt="Logo"
-          style={{ width: "30px", height: "30px" }}
-        />
+        <h2>📝 ChatGPT to Stickies</h2>
       </header>
       <section>
-        <h2>Input</h2>
+        <h3>Input</h3>
         <label htmlFor="notes">Notes</label>
         <textarea
           id="notes"
           value={notes}
           onChange={handleNoteChange}
-          placeholder="Paste your notes here"
+          placeholder="Title1: Content1
+Title2: Content2..." // DO NOT MOVE
           className="note-textarea"
         />
         <label htmlFor="maxColumns">Maximum Columns</label>
@@ -51,7 +46,7 @@ function App() {
           min="1"
           value={maxCol}
           onChange={handleMaxColChange}
-          placeholder="Max Columns"
+          placeholder="Example: 3"
           className="max-col-input"
         />
         <button className="brand" onClick={onPasteAsNotes}>
