@@ -1,6 +1,6 @@
 {
   "name": "CHATGPT-To-Stickies",
-  "id": "chatgpt-to-stickies",
+  "id": "1267998318136491816",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
