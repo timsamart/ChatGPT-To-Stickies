@@ -2,10 +2,10 @@ import { parseInput, SectionData, StickyData } from "./utils";
 
 figma.showUI(__html__, { themeColors: true, height: 600, width: 300 });
 
-let nodes: SectionNode[] = [];
-let undoStack: SectionNode[][] = [];
+let nodes: (SectionNode | StickyNode)[] = [];
+let undoStack: (SectionNode | StickyNode)[][] = [];
 
-figma.ui.onmessage = async (msg: { type: string; input?: string; maxCol?: number; format?: string; }) => {
+figma.ui.onmessage = async (msg: { type: string; input?: string; maxCol?: number; format?: string; createSection?: boolean; }) => {
   if (msg.type === "create-stickies") {
     figma.showUI(__html__, { visible: true });
   }
@@ -30,8 +30,8 @@ figma.ui.onmessage = async (msg: { type: string; input?: string; maxCol?: number
 
       undoStack.push([...nodes]);
       nodes = [];
-      const createdSections = await createSectionsWithStickies(data, msg.maxCol);
-      figma.notify(`Created ${createdSections} sections with stickies`);
+      const createdItems = await createSectionsWithStickies(data, msg.maxCol, msg.createSection);
+      figma.notify(`Created ${createdItems} ${msg.createSection ? 'sections' : 'groups of stickies'}`);
 
       figma.viewport.scrollAndZoomIntoView(nodes);
       
@@ -56,79 +56,119 @@ figma.ui.onmessage = async (msg: { type: string; input?: string; maxCol?: number
   }
 
   if (msg.type === "export") {
-    const exportData = nodes.map(sectionNode => ({
-      title: sectionNode.name,
-      stickies: sectionNode.findAll(node => node.type === "STICKY").map((stickyNode: StickyNode) => ({
-        title: stickyNode.name,
-        content: stickyNode.text.characters.split('\n\n')[1] || ""
-      }))
-    }));
+    const exportData = nodes.map(node => {
+      if (node.type === "SECTION") {
+        return {
+          title: node.name,
+          stickies: node.findChildren(n => n.type === "STICKY").map((stickyNode: StickyNode) => ({
+            title: stickyNode.name,
+            content: stickyNode.text.characters.split('\n\n')[1] || ""
+          }))
+        };
+      } else if (node.type === "STICKY") {
+        return {
+          title: node.name,
+          content: node.text.characters.split('\n\n')[1] || ""
+        };
+      }
+    });
     figma.ui.postMessage({ type: "export-data", data: exportData });
   }
 };
 
-async function createSectionsWithStickies(data: SectionData[], maxCol: number): Promise<number> {
+async function createSectionsWithStickies(data: SectionData[], maxCol: number, createSection: boolean): Promise<number> {
   const sectionPadding = 100;
   const maxWidth = figma.viewport.bounds.width;
   let sectionX = 0;
   let sectionY = 0;
   let rowMaxHeight = 0;
+  let createdItems = 0;
 
   for (const [index, sectionData] of data.entries()) {
-    const section = figma.createSection();
-    section.name = sectionData.title;
+    let parentNode: SectionNode | null = null;
+    let sectionTitleHeight = 0;
 
-    const titleText = figma.createText();
-    titleText.characters = sectionData.title;
-    titleText.fontSize = 24;
-    titleText.fontName = { family: "Inter", style: "Medium" };
-    section.appendChild(titleText);
+    if (createSection) {
+      const section = figma.createSection();
+      section.name = sectionData.title;
 
-    const sectionColor = generatePastelColor(index);
-    const { width, height } = await createStickies(sectionData.stickies, maxCol, sectionColor, section);
+      const titleText = figma.createText();
+      titleText.characters = sectionData.title;
+      titleText.fontSize = 24;
+      titleText.fontName = { family: "Inter", style: "Medium" };
+      section.appendChild(titleText);
 
-    // Resize section to fit content
-    const sectionPadding = 40;
-    section.resizeWithoutConstraints(
-      width + sectionPadding * 2,
-      height + titleText.height + sectionPadding * 3
-    );
-
-    // Reposition content within section
-    section.children.forEach(child => {
-      child.x += sectionPadding;
-      child.y += titleText.height + sectionPadding * 2;
-    });
-    titleText.x = sectionPadding;
-    titleText.y = sectionPadding;
-
-    // Position the section
-    if (sectionX + section.width > maxWidth) {
-      sectionX = 0;
-      sectionY += rowMaxHeight + sectionPadding;
-      rowMaxHeight = 0;
+      parentNode = section;
+      sectionTitleHeight = titleText.height + 40; // Add some padding
+      createdItems++;
     }
 
-    section.x = sectionX;
-    section.y = sectionY;
+    const sectionColor = generatePastelColor(index);
+    const { width, height, stickies } = await createStickies(sectionData.stickies, maxCol, sectionColor, parentNode);
 
-    sectionX += section.width + sectionPadding;
-    rowMaxHeight = Math.max(rowMaxHeight, section.height);
+    if (parentNode) {
+      // Resize section to fit content
+      const sectionPadding = 40;
+      parentNode.resizeWithoutConstraints(
+        width + sectionPadding * 2,
+        height + sectionTitleHeight + sectionPadding
+      );
 
-    figma.currentPage.appendChild(section);
-    nodes.push(section);
+      // Reposition content within section
+      parentNode.children.forEach(child => {
+        if (child.type !== "TEXT") {
+          child.x += sectionPadding;
+          child.y += sectionTitleHeight;
+        }
+      });
+
+      // Position the section
+      if (sectionX + parentNode.width > maxWidth) {
+        sectionX = 0;
+        sectionY += rowMaxHeight + sectionPadding;
+        rowMaxHeight = 0;
+      }
+
+      parentNode.x = sectionX;
+      parentNode.y = sectionY;
+
+      sectionX += parentNode.width + sectionPadding;
+      rowMaxHeight = Math.max(rowMaxHeight, parentNode.height);
+
+      figma.currentPage.appendChild(parentNode);
+      nodes.push(parentNode);
+    } else {
+      // Position the group of stickies
+      if (sectionX + width > maxWidth) {
+        sectionX = 0;
+        sectionY += rowMaxHeight + sectionPadding;
+        rowMaxHeight = 0;
+      }
+
+      stickies.forEach(sticky => {
+        sticky.x += sectionX;
+        sticky.y += sectionY;
+        figma.currentPage.appendChild(sticky);
+        nodes.push(sticky);
+      });
+
+      sectionX += width + sectionPadding;
+      rowMaxHeight = Math.max(rowMaxHeight, height);
+      createdItems++;
+    }
   }
 
-  return data.length;
+  return createdItems;
 }
 
-async function createStickies(data: StickyData[], maxCol: number, sectionColor: RGB, parentSection: SectionNode): Promise<{ width: number, height: number }> {
+async function createStickies(data: StickyData[], maxCol: number, sectionColor: RGB, parentNode: SectionNode | null): Promise<{ width: number, height: number, stickies: StickyNode[] }> {
   const stickyPadding = 20;
   let stickyX = 0;
   let stickyY = 0;
   let maxRowHeight = 0;
   let maxWidth = 0;
   let totalHeight = 0;
+  let stickies: StickyNode[] = [];
 
   for (let i = 0; i < data.length; i++) {
     const entry = data[i];
@@ -156,7 +196,11 @@ async function createStickies(data: StickyData[], maxCol: number, sectionColor: 
 
     stickyNode.isWideWidth = true;
 
-    parentSection.appendChild(stickyNode);
+    if (parentNode) {
+      parentNode.appendChild(stickyNode);
+    } else {
+      stickies.push(stickyNode);
+    }
 
     // Position the sticky
     stickyNode.x = stickyX;
@@ -180,7 +224,7 @@ async function createStickies(data: StickyData[], maxCol: number, sectionColor: 
   // Add the height of the last row
   totalHeight += maxRowHeight;
 
-  return { width: maxWidth, height: totalHeight };
+  return { width: maxWidth, height: totalHeight, stickies };
 }
 
 function generatePastelColor(index: number): RGB {

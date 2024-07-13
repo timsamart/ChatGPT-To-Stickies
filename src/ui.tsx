@@ -7,6 +7,7 @@ function App() {
   const [maxCol, setMaxCol] = React.useState(3);
   const [format, setFormat] = React.useState("plain");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [createSection, setCreateSection] = React.useState(true);
 
   React.useEffect(() => {
     window.onmessage = (event) => {
@@ -30,7 +31,7 @@ function App() {
   const onCreateStickies = () => {
     setIsLoading(true);
     parent.postMessage(
-      { pluginMessage: { type: "process-input", input, maxCol, format } },
+      { pluginMessage: { type: "process-input", input, maxCol, format, createSection } },
       "*"
     );
   };
@@ -46,6 +47,10 @@ function App() {
 
   const handleFormatChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setFormat(event.target.value);
+  };
+
+  const handleCreateSectionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCreateSection(event.target.checked);
   };
 
   const handleUndo = () => {
@@ -103,6 +108,17 @@ function App() {
             onChange={handleMaxColChange}
             className="number-input"
           />
+        </div>
+        <div className="input-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={createSection}
+              onChange={handleCreateSectionChange}
+              className="checkbox-input"
+            />
+            Create Section
+          </label>
         </div>
       </main>
       <footer className="app-footer">
