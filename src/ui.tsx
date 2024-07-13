@@ -2,42 +2,90 @@ import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import "./ui.css";
 
-declare function require(path: string): any;
-
 function App() {
-  const [notes, setNotes] = React.useState(""); // add state to handle the notes
-  const [maxCol, setMaxCol] = React.useState(7); // add state to handle maxCol
+  const [input, setInput] = React.useState("");
+  const [maxCol, setMaxCol] = React.useState(7);
+  const [format, setFormat] = React.useState("plain");
+  const [color, setColor] = React.useState("#FFFFFF");
 
-  const onPasteAsNotes = () => {
+  React.useEffect(() => {
+    window.onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      if (message.type === "export-data") {
+        const dataStr = JSON.stringify(message.data);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const exportFileDefaultName = 'stickies_data.json';
+
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+      }
+    }
+  }, []);
+
+  const onCreateStickies = () => {
     parent.postMessage(
-      { pluginMessage: { type: "notes", notes, maxCol: maxCol } },
+      { pluginMessage: { type: "process-input", input, maxCol, format, color } },
       "*"
     );
   };
 
-  const handleNoteChange = (event) => {
-    setNotes(event.target.value); // update the state when text changes
+  const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(event.target.value);
   };
 
-  const handleMaxColChange = (event) => {
-    setMaxCol(event.target.value); // update the state when maxCol changes
+  const handleMaxColChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(event.target.value, 10);
+    setMaxCol(isNaN(value) ? 1 : Math.max(1, value));
+  };
+
+  const handleFormatChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormat(event.target.value);
+  };
+
+  const handleColorChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setColor(event.target.value);
+  };
+
+  const handleUndo = () => {
+    parent.postMessage({ pluginMessage: { type: "undo" } }, "*");
+  };
+
+  const handleExport = () => {
+    parent.postMessage({ pluginMessage: { type: "export" } }, "*");
+  };
+
+  const getPlaceholder = () => {
+    switch (format) {
+      case "plain":
+        return "Title1: Content1\nTitle2: Content2...";
+      case "json":
+        return '[{"title": "Title1", "content": "Content1"}, {"title": "Title2", "content": "Content2"}]';
+      default:
+        return "";
+    }
   };
 
   return (
     <main>
       <header>
-        <h2>📝 ChatGPT to Stickies</h2>
+        <h2>📝 Multi-format Stickies Creator</h2>
       </header>
       <section>
         <h3>Input</h3>
-        <label htmlFor="notes">Notes</label>
+        <label htmlFor="format">Input Format</label>
+        <select id="format" value={format} onChange={handleFormatChange}>
+          <option value="plain">Plain Text</option>
+          <option value="json">JSON</option>
+        </select>
+        <label htmlFor="input">Input Data</label>
         <textarea
-          id="notes"
-          value={notes}
-          onChange={handleNoteChange}
-          placeholder="Title1: Content1
-Title2: Content2..." // DO NOT MOVE
-          className="note-textarea"
+          id="input"
+          value={input}
+          onChange={handleInputChange}
+          placeholder={getPlaceholder()}
+          className="input-textarea"
         />
         <label htmlFor="maxColumns">Maximum Columns</label>
         <input
@@ -46,15 +94,23 @@ Title2: Content2..." // DO NOT MOVE
           min="1"
           value={maxCol}
           onChange={handleMaxColChange}
-          placeholder="Example: 3"
           className="max-col-input"
         />
-        <button className="brand" onClick={onPasteAsNotes}>
-          📋 Paste as Notes from ChatGPT
+        <label htmlFor="color">Sticky Color</label>
+        <input
+          id="color"
+          type="color"
+          value={color}
+          onChange={handleColorChange}
+        />
+        <button className="brand" onClick={onCreateStickies} disabled={!input.trim()}>
+          📋 Create Stickies
         </button>
+        <button onClick={handleUndo}>↩️ Undo</button>
+        <button onClick={handleExport}>📤 Export</button>
       </section>
     </main>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("react-page")).render(<App />);
+ReactDOM.createRoot(document.getElementById("react-page")!).render(<App />);

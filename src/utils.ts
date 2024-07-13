@@ -1,52 +1,74 @@
-// utils.ts
+export interface StickyData {
+  title: string;
+  content: string;
+}
 
-export function parseNotes(
-  notes: string
-): { title: string; content: string }[] {
+export function parseInput(input: string, format: string): StickyData[] {
+  switch (format) {
+    case "plain":
+      return parseNotes(input);
+    case "json":
+      return parseJSON(input);
+    default:
+      console.error("Unsupported input format");
+      return [];
+  }
+}
+
+export function parseNotes(notes: string): StickyData[] {
   const noteLines = notes.replace(/\*\*/g, "").split("\n");
-
-  let title = "";
-  let content = "";
-
-  const entries: { title: string; content: string }[] = [];
+  const entries: StickyData[] = [];
+  let currentEntry: StickyData = { title: "", content: "" };
 
   noteLines.forEach((line, index) => {
     line = line.trim();
 
     if (line === "") {
-      // If the line is empty, we've found a new paragraph/note
-      if (title !== "" || content.trim() !== "") {
-        // ignore empty content
-        entries.push({ title, content: content.trim() });
+      if (currentEntry.title || currentEntry.content.trim()) {
+        entries.push({ ...currentEntry });
+        currentEntry = { title: "", content: "" };
       }
-      title = "";
-      content = "";
     } else if (line.includes(":")) {
-      if (line.endsWith(":")) {
-        // if line ends with ':' treat it as content
-        content += ` ${line.trim().slice(0, -1)}`; // remove ':' from the end
-      } else {
-        if (title !== "" || content.trim() !== "") {
-          // new note found, push the previous one
-          entries.push({ title, content: content.trim() });
-          content = "";
+      const [title, ...contentParts] = line.split(":");
+      if (contentParts.length > 0) {
+        if (currentEntry.title || currentEntry.content.trim()) {
+          entries.push({ ...currentEntry });
         }
-        const lineParts = line.split(":");
-        title = lineParts[0].trim();
-        content += lineParts.slice(1).join(":").trim(); // handles multiple ":" in the line
+        currentEntry.title = title.trim();
+        currentEntry.content = contentParts.join(":").trim();
+      } else {
+        currentEntry.content += ` ${line.trim()}`;
       }
     } else {
-      content += ` ${line.trim()}`;
+      currentEntry.content += ` ${line.trim()}`;
     }
 
-    // if it is the last line, push the content
-    if (
-      index === noteLines.length - 1 &&
-      (title !== "" || content.trim() !== "")
-    ) {
-      entries.push({ title, content: content.trim() });
+    if (index === noteLines.length - 1 && (currentEntry.title || currentEntry.content.trim())) {
+      entries.push({ ...currentEntry });
     }
   });
 
   return entries;
+}
+
+export function parseJSON(input: string): StickyData[] {
+  try {
+    const parsed = JSON.parse(input);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item, index) => {
+        if (!item.title && !item.content) {
+          throw new Error(`Item at index ${index} is missing both title and content`);
+        }
+        return {
+          title: String(item.title || ''),
+          content: String(item.content || '')
+        };
+      });
+    } else {
+      throw new Error('Invalid JSON format: expected an array of objects');
+    }
+  } catch (error) {
+    console.error('Error parsing JSON:', error);
+    throw new Error(`Failed to parse JSON: ${error.message}`);
+  }
 }
