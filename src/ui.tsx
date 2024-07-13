@@ -6,7 +6,6 @@ function App() {
   const [input, setInput] = React.useState("");
   const [maxCol, setMaxCol] = React.useState(3);
   const [format, setFormat] = React.useState("plain");
-  const [color, setColor] = React.useState("#FFF9DE");
   const [isLoading, setIsLoading] = React.useState(false);
 
   React.useEffect(() => {
@@ -22,6 +21,8 @@ function App() {
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
         setIsLoading(false);
+      } else if (message.type === "creation-complete") {
+        setIsLoading(false);
       }
     }
   }, []);
@@ -29,7 +30,7 @@ function App() {
   const onCreateStickies = () => {
     setIsLoading(true);
     parent.postMessage(
-      { pluginMessage: { type: "process-input", input, maxCol, format, color } },
+      { pluginMessage: { type: "process-input", input, maxCol, format } },
       "*"
     );
   };
@@ -47,10 +48,6 @@ function App() {
     setFormat(event.target.value);
   };
 
-  const handleColorChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setColor(event.target.value);
-  };
-
   const handleUndo = () => {
     parent.postMessage({ pluginMessage: { type: "undo" } }, "*");
   };
@@ -65,7 +62,7 @@ function App() {
       case "plain":
         return "Title 1: Content 1\nTitle 2: Content 2...";
       case "json":
-        return '{\n  "Frame 1": [\n    {"title": "Sticky 1", "content": "Content 1"},\n    {"title": "Sticky 2", "content": "Content 2"}\n  ],\n  "Frame 2": [\n    {"title": "Sticky 3", "content": "Content 3"},\n    {"title": "Sticky 4", "content": "Content 4"}\n  ]\n}';
+        return '{\n  "Section 1": [\n    {"title": "Sticky 1", "content": "Content 1"},\n    {"title": "Sticky 2", "content": "Content 2"}\n  ],\n  "Section 2": [\n    {"title": "Sticky 3", "content": "Content 3"},\n    {"title": "Sticky 4", "content": "Content 4"}\n  ]\n}';
       default:
         return "";
     }
@@ -95,29 +92,17 @@ function App() {
             rows={10}
           />
         </div>
-        <div className="input-row">
-          <div className="input-group">
-            <label htmlFor="maxColumns">Max Columns</label>
-            <input
-              id="maxColumns"
-              type="number"
-              min="1"
-              max="10"
-              value={maxCol}
-              onChange={handleMaxColChange}
-              className="number-input"
-            />
-          </div>
-          <div className="input-group">
-            <label htmlFor="color">Sticky Color</label>
-            <input
-              id="color"
-              type="color"
-              value={color}
-              onChange={handleColorChange}
-              className="color-input"
-            />
-          </div>
+        <div className="input-group">
+          <label htmlFor="maxColumns">Max Columns</label>
+          <input
+            id="maxColumns"
+            type="number"
+            min="1"
+            max="10"
+            value={maxCol}
+            onChange={handleMaxColChange}
+            className="number-input"
+          />
         </div>
       </main>
       <footer className="app-footer">
