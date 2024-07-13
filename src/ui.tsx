@@ -4,15 +4,16 @@ import "./ui.css";
 
 function App() {
   const [input, setInput] = React.useState("");
-  const [maxCol, setMaxCol] = React.useState(7);
+  const [maxCol, setMaxCol] = React.useState(3);
   const [format, setFormat] = React.useState("plain");
-  const [color, setColor] = React.useState("#FFFFFF");
+  const [color, setColor] = React.useState("#FFF9DE");
+  const [isLoading, setIsLoading] = React.useState(false);
 
   React.useEffect(() => {
     window.onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (message.type === "export-data") {
-        const dataStr = JSON.stringify(message.data);
+        const dataStr = JSON.stringify(message.data, null, 2);
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
         const exportFileDefaultName = 'stickies_data.json';
 
@@ -20,11 +21,13 @@ function App() {
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
+        setIsLoading(false);
       }
     }
   }, []);
 
   const onCreateStickies = () => {
+    setIsLoading(true);
     parent.postMessage(
       { pluginMessage: { type: "process-input", input, maxCol, format, color } },
       "*"
@@ -37,7 +40,7 @@ function App() {
 
   const handleMaxColChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(event.target.value, 10);
-    setMaxCol(isNaN(value) ? 1 : Math.max(1, value));
+    setMaxCol(isNaN(value) ? 1 : Math.max(1, Math.min(10, value)));
   };
 
   const handleFormatChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -53,63 +56,84 @@ function App() {
   };
 
   const handleExport = () => {
+    setIsLoading(true);
     parent.postMessage({ pluginMessage: { type: "export" } }, "*");
   };
 
   const getPlaceholder = () => {
     switch (format) {
       case "plain":
-        return "Title1: Content1\nTitle2: Content2...";
+        return "Title 1: Content 1\nTitle 2: Content 2...";
       case "json":
-        return '[{"title": "Title1", "content": "Content1"}, {"title": "Title2", "content": "Content2"}]';
+        return '{\n  "Frame 1": [\n    {"title": "Sticky 1", "content": "Content 1"},\n    {"title": "Sticky 2", "content": "Content 2"}\n  ],\n  "Frame 2": [\n    {"title": "Sticky 3", "content": "Content 3"},\n    {"title": "Sticky 4", "content": "Content 4"}\n  ]\n}';
       default:
         return "";
     }
   };
 
   return (
-    <main>
-      <header>
-        <h2>📝 Multi-format Stickies Creator</h2>
+    <div className="app-container">
+      <header className="app-header">
+        <h1>📝 Stickies Creator</h1>
       </header>
-      <section>
-        <h3>Input</h3>
-        <label htmlFor="format">Input Format</label>
-        <select id="format" value={format} onChange={handleFormatChange}>
-          <option value="plain">Plain Text</option>
-          <option value="json">JSON</option>
-        </select>
-        <label htmlFor="input">Input Data</label>
-        <textarea
-          id="input"
-          value={input}
-          onChange={handleInputChange}
-          placeholder={getPlaceholder()}
-          className="input-textarea"
-        />
-        <label htmlFor="maxColumns">Maximum Columns</label>
-        <input
-          id="maxColumns"
-          type="number"
-          min="1"
-          value={maxCol}
-          onChange={handleMaxColChange}
-          className="max-col-input"
-        />
-        <label htmlFor="color">Sticky Color</label>
-        <input
-          id="color"
-          type="color"
-          value={color}
-          onChange={handleColorChange}
-        />
-        <button className="brand" onClick={onCreateStickies} disabled={!input.trim()}>
-          📋 Create Stickies
+      <main className="app-main">
+        <div className="input-group">
+          <label htmlFor="format">Input Format</label>
+          <select id="format" value={format} onChange={handleFormatChange} className="select-input">
+            <option value="plain">Plain Text</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <div className="input-group">
+          <label htmlFor="input">Input Data</label>
+          <textarea
+            id="input"
+            value={input}
+            onChange={handleInputChange}
+            placeholder={getPlaceholder()}
+            className="textarea-input"
+            rows={10}
+          />
+        </div>
+        <div className="input-row">
+          <div className="input-group">
+            <label htmlFor="maxColumns">Max Columns</label>
+            <input
+              id="maxColumns"
+              type="number"
+              min="1"
+              max="10"
+              value={maxCol}
+              onChange={handleMaxColChange}
+              className="number-input"
+            />
+          </div>
+          <div className="input-group">
+            <label htmlFor="color">Sticky Color</label>
+            <input
+              id="color"
+              type="color"
+              value={color}
+              onChange={handleColorChange}
+              className="color-input"
+            />
+          </div>
+        </div>
+      </main>
+      <footer className="app-footer">
+        <button className="button button-primary" onClick={onCreateStickies} disabled={!input.trim() || isLoading}>
+          {isLoading ? 'Creating...' : '📋 Create Stickies'}
         </button>
-        <button onClick={handleUndo}>↩️ Undo</button>
-        <button onClick={handleExport}>📤 Export</button>
-      </section>
-    </main>
+        <div className="button-group">
+          <button className="button button-secondary" onClick={handleUndo} disabled={isLoading}>
+            ↩️ Undo
+          </button>
+          <button className="button button-secondary" onClick={handleExport} disabled={isLoading}>
+            📤 Export
+          </button>
+        </div>
+      </footer>
+    </div>
   );
 }
 

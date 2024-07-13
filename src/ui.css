@@ -14,102 +14,145 @@
   --color-text-brand: var(--figma-color-text-onbrand);
 }
 
-html,
-body,
-main {
-  height: 100%;
-}
-
-body,
-input,
-button {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  font-size: 1rem;
-  text-align: center;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--color-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg);
   color: var(--color-text);
-  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-button {
-  border-radius: 0.25rem;
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-  border: 1px solid var(--color-border);
-  padding: 0.5rem 1rem;
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 16px;
 }
-button:hover {
+
+.app-header {
+  margin-bottom: 16px;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.app-main {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-row {
+  display: flex;
+  gap: 16px;
+}
+
+.input-row .input-group {
+  flex: 1;
+}
+
+label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.select-input,
+.textarea-input,
+.number-input,
+.color-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.select-input:focus,
+.textarea-input:focus,
+.number-input:focus,
+.color-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+
+.textarea-input {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.color-input {
+  height: 40px;
+  padding: 0;
+  border: none;
+}
+
+.app-footer {
+  margin-top: 16px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button-primary {
+  background-color: var(--color-bg-brand);
+  color: var(--color-text-brand);
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.button-primary:hover:not(:disabled) {
+  background-color: var(--color-bg-brand-hover);
+}
+
+.button-primary:active:not(:disabled) {
+  background-color: var(--color-bg-brand-active);
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.button-secondary {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  flex: 1;
+}
+
+.button-secondary:hover:not(:disabled) {
   background-color: var(--color-bg-hover);
 }
-button:active {
+
+.button-secondary:active:not(:disabled) {
   background-color: var(--color-bg-active);
-}
-button:focus-visible {
-  border: none;
-  outline-color: var(--color-border-focus);
-}
-button.brand {
-  --color-bg: var(--color-bg-brand);
-  --color-text: var(--color-text-brand);
-  --color-bg-hover: var(--color-bg-brand-hover);
-  --color-bg-active: var(--color-bg-brand-active);
-  --color-border: transparent;
-  --color-border-focus: var(--color-border-brand-focus);
-}
-
-input {
-  background: 1px solid var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: 1px solid var(--color-text);
-  padding: 0.5rem;
-}
-
-input:focus-visible {
-  border-color: var(--color-border-focus);
-  outline-color: var(--color-border-focus);
-}
-
-svg {
-  stroke: var(--color-icon, rgba(0, 0, 0, 0.9));
-}
-
-main {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-section {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-section > * + * {
-  margin-top: 0.5rem;
-}
-footer > * + * {
-  margin-left: 0.5rem;
-}
-
-img {
-  height: auto;
-  width: 2rem;
-}
-
-.note-textarea {
-  width: 15em; /* approx 30 characters wide */
-  height: 15em; /* approx 30 lines tall */
-}
-
-.logo {
-  width: 90px;
-  height: 60px;
 }

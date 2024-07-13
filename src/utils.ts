@@ -3,10 +3,15 @@ export interface StickyData {
   content: string;
 }
 
-export function parseInput(input: string, format: string): StickyData[] {
+export interface SectionData {
+  title: string;
+  stickies: StickyData[];
+}
+
+export function parseInput(input: string, format: string): SectionData[] {
   switch (format) {
     case "plain":
-      return parseNotes(input);
+      return [{ title: "Main Section", stickies: parseNotes(input) }];
     case "json":
       return parseJSON(input);
     default:
@@ -51,24 +56,42 @@ export function parseNotes(notes: string): StickyData[] {
   return entries;
 }
 
-export function parseJSON(input: string): StickyData[] {
+export function parseJSON(input: string): SectionData[] {
   try {
     const parsed = JSON.parse(input);
     if (Array.isArray(parsed)) {
-      return parsed.map((item, index) => {
-        if (!item.title && !item.content) {
-          throw new Error(`Item at index ${index} is missing both title and content`);
-        }
-        return {
-          title: String(item.title || ''),
-          content: String(item.content || '')
-        };
-      });
+      return [{ title: "Main Section", stickies: parseStickyData(parsed) }];
+    } else if (typeof parsed === 'object') {
+      return Object.entries(parsed).map(([title, content]) => ({
+        title,
+        stickies: parseStickyData(content)
+      }));
     } else {
-      throw new Error('Invalid JSON format: expected an array of objects');
+      throw new Error('Invalid JSON format: expected an array of objects or an object');
     }
   } catch (error) {
     console.error('Error parsing JSON:', error);
     throw new Error(`Failed to parse JSON: ${error.message}`);
+  }
+}
+
+function parseStickyData(data: any): StickyData[] {
+  if (Array.isArray(data)) {
+    return data.map((item, index) => {
+      if (!item.title && !item.content) {
+        throw new Error(`Item at index ${index} is missing both title and content`);
+      }
+      return {
+        title: String(item.title || ''),
+        content: String(item.content || '')
+      };
+    });
+  } else if (typeof data === 'object') {
+    return Object.entries(data).map(([title, content]) => ({
+      title,
+      content: String(content)
+    }));
+  } else {
+    throw new Error('Invalid data format for sticky notes');
   }
 }
