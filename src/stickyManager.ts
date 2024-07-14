@@ -112,7 +112,7 @@ export class StickyManager {
     return createdItems;
   }
 
-  private async createStickies(data: StickyData[], maxCol: number, sectionColor: RGB, parentNode: SectionNode | null): Promise<{ width: number, height: number, stickies: StickyNode[] }> {
+  private async createStickies(data: (StickyData | SectionData)[], maxCol: number, sectionColor: RGB, parentNode: SectionNode | null): Promise<{ width: number, height: number, stickies: StickyNode[] }> {
     const stickyPadding = CONFIG.stickyPadding;
     let stickyX = 0;
     let stickyY = 0;
@@ -123,32 +123,34 @@ export class StickyManager {
 
     for (let i = 0; i < data.length; i++) {
       const entry = data[i];
-      const stickyNode = figma.createSticky();
-      stickyNode.name = entry.title;
-      stickyNode.text.characters = entry.title + (entry.content ? '\n\n' + entry.content : '');
+      if ("content" in entry) {
+        const stickyNode = figma.createSticky();
+        stickyNode.name = entry.title;
+        stickyNode.text.characters = entry.title + (entry.content ? '\n\n' + entry.content : '');
 
-      this.applyTextStyles(stickyNode, entry);
+        this.applyTextStyles(stickyNode, entry);
 
-      stickyNode.fills = [{ type: 'SOLID', color: sectionColor }];
+        stickyNode.fills = [{ type: 'SOLID', color: sectionColor }];
 
-      if (parentNode) {
-        parentNode.appendChild(stickyNode);
-      }
-      stickies.push(stickyNode);
+        if (parentNode) {
+          parentNode.appendChild(stickyNode);
+        }
+        stickies.push(stickyNode);
 
-      stickyNode.x = stickyX;
-      stickyNode.y = stickyY;
+        stickyNode.x = stickyX;
+        stickyNode.y = stickyY;
 
-      maxRowHeight = Math.max(maxRowHeight, stickyNode.height);
-      maxWidth = Math.max(maxWidth, stickyX + stickyNode.width);
+        maxRowHeight = Math.max(maxRowHeight, stickyNode.height);
+        maxWidth = Math.max(maxWidth, stickyX + stickyNode.width);
 
-      if ((i + 1) % maxCol === 0) {
-        stickyX = 0;
-        stickyY += maxRowHeight + stickyPadding;
-        totalHeight += maxRowHeight + stickyPadding;
-        maxRowHeight = 0;
-      } else {
-        stickyX += stickyNode.width + stickyPadding;
+        if ((i + 1) % maxCol === 0) {
+          stickyX = 0;
+          stickyY += maxRowHeight + stickyPadding;
+          totalHeight += maxRowHeight + stickyPadding;
+          maxRowHeight = 0;
+        } else {
+          stickyX += stickyNode.width + stickyPadding;
+        }
       }
     }
 

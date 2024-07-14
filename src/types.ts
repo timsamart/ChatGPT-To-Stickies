@@ -7,9 +7,9 @@ export enum UIMessageType {
     CREATION_COMPLETE = "creation-complete",
     EXPORT_DATA = "export-data",
     SHOW_PROMPT = "show-prompt"
-  }
-  
-  export interface UIMessage {
+}
+
+export interface UIMessage {
     type: UIMessageType;
     input?: string;
     format?: string;
@@ -17,26 +17,26 @@ export enum UIMessageType {
     createSection?: boolean;
     message?: string;
     options?: any;
-  }
-  
-  export interface FlatStickyData {
+}
+
+export interface FlatStickyData {
     title: string;
     content: string;
     level: number;
-  }
-  
-  export interface StickyData {
+}
+
+export interface StickyData {
     title: string;
     content: string;
-  }
-  
-  export interface SectionData {
+}
+
+export interface SectionData {
     title: string;
-    stickies: StickyData[];
-  }
-  
-  export interface ExportData {
+    stickies: (StickyData | SectionData)[];
+}
+
+export interface ExportData {
     title: string;
     content?: string;
     stickies?: ExportData[];
-  }
+}
