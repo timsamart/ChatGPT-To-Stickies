@@ -49,8 +49,12 @@ export class UIMessageHandler {
       await figma.loadFontAsync(CONFIG.fonts.medium);
       await figma.loadFontAsync(CONFIG.fonts.regular);
 
-      const data = JSON.parse(msg.input);
-      const createdItems = await this.stickyManager.createStickiesFromJSON(data, msg.maxCol || CONFIG.defaultMaxColumns);
+      const createdItems = await this.stickyManager.createStickiesFromInput(
+        msg.input,
+        msg.format,
+        msg.maxCol || CONFIG.defaultMaxColumns,
+        msg.createSection || false
+      );
 
       figma.notify(`Created ${createdItems} stickies`, {
         timeout: CONFIG.notificationTimeout,

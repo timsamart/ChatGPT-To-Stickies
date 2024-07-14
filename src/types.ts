@@ -14,6 +14,7 @@ export enum UIMessageType {
     input?: string;
     format?: string;
     maxCol?: number;
+    createSection?: boolean;
     message?: string;
     options?: any;
   }
@@ -24,7 +25,18 @@ export enum UIMessageType {
     level: number;
   }
   
-  export interface ExportData {
+  export interface StickyData {
     title: string;
     content: string;
+  }
+  
+  export interface SectionData {
+    title: string;
+    stickies: StickyData[];
+  }
+  
+  export interface ExportData {
+    title: string;
+    content?: string;
+    stickies?: ExportData[];
   }

@@ -1,5 +1,6 @@
-import { FlatStickyData, ExportData } from './types';
+import { FlatStickyData, ExportData, SectionData, StickyData } from './types';
 import { CONFIG } from './config';
+import { parseInput } from './utils';
 
 export class StickyManager {
   private nodes: SceneNode[] = [];
@@ -22,83 +23,160 @@ export class StickyManager {
     }
   }
 
-  async createStickiesFromJSON(data: any, maxCol: number): Promise<number> {
-    const flatData = this.flattenJSON(data);
+  async createStickiesFromInput(input: string, format: string, maxCol: number, createSection: boolean): Promise<number> {
+    const data = parseInput(input, format);
+    return this.createSectionsWithStickies(data, maxCol, createSection);
+  }
+
+  async createSectionsWithStickies(data: SectionData[], maxCol: number, createSection: boolean): Promise<number> {
     this.undoStack.push([...this.nodes]);
     this.nodes = [];
 
+    const sectionPadding = CONFIG.sectionPadding;
+    const maxWidth = figma.viewport.bounds.width;
+    let sectionX = 0;
+    let sectionY = 0;
+    let rowMaxHeight = 0;
+    let createdItems = 0;
+
+    for (const [index, sectionData] of data.entries()) {
+      let parentNode: SectionNode | null = null;
+      let sectionTitleHeight = 0;
+
+      if (createSection) {
+        const section = figma.createSection();
+        section.name = sectionData.title;
+
+        const titleText = figma.createText();
+        titleText.characters = sectionData.title;
+        titleText.fontSize = CONFIG.fontSize.sectionTitle;
+        titleText.fontName = CONFIG.fonts.medium;
+        section.appendChild(titleText);
+
+        parentNode = section;
+        sectionTitleHeight = titleText.height + CONFIG.sectionTitlePadding;
+        createdItems++;
+      }
+
+      const sectionColor = this.generatePastelColor(index);
+      const { width, height, stickies } = await this.createStickies(sectionData.stickies, maxCol, sectionColor, parentNode);
+
+      if (parentNode) {
+        parentNode.resizeWithoutConstraints(
+          width + sectionPadding * 2,
+          height + sectionTitleHeight + sectionPadding
+        );
+
+        parentNode.children.forEach(child => {
+          if (child.type !== "TEXT") {
+            child.x += sectionPadding;
+            child.y += sectionTitleHeight;
+          }
+        });
+
+        if (sectionX + parentNode.width > maxWidth) {
+          sectionX = 0;
+          sectionY += rowMaxHeight + sectionPadding;
+          rowMaxHeight = 0;
+        }
+
+        parentNode.x = sectionX;
+        parentNode.y = sectionY;
+
+        sectionX += parentNode.width + sectionPadding;
+        rowMaxHeight = Math.max(rowMaxHeight, parentNode.height);
+
+        figma.currentPage.appendChild(parentNode);
+        this.nodes.push(parentNode);
+      } else {
+        if (sectionX + width > maxWidth) {
+          sectionX = 0;
+          sectionY += rowMaxHeight + sectionPadding;
+          rowMaxHeight = 0;
+        }
+
+        stickies.forEach(sticky => {
+          sticky.x += sectionX;
+          sticky.y += sectionY;
+          figma.currentPage.appendChild(sticky);
+          this.nodes.push(sticky);
+        });
+
+        sectionX += width + sectionPadding;
+        rowMaxHeight = Math.max(rowMaxHeight, height);
+      }
+
+      createdItems += stickies.length;
+    }
+
+    return createdItems;
+  }
+
+  private async createStickies(data: StickyData[], maxCol: number, sectionColor: RGB, parentNode: SectionNode | null): Promise<{ width: number, height: number, stickies: StickyNode[] }> {
+    const stickyPadding = CONFIG.stickyPadding;
     let stickyX = 0;
     let stickyY = 0;
     let maxRowHeight = 0;
-    let createdItems = 0;
+    let maxWidth = 0;
+    let totalHeight = 0;
+    let stickies: StickyNode[] = [];
 
-    for (let i = 0; i < flatData.length; i++) {
-      const entry = flatData[i];
+    for (let i = 0; i < data.length; i++) {
+      const entry = data[i];
       const stickyNode = figma.createSticky();
       stickyNode.name = entry.title;
       stickyNode.text.characters = entry.title + (entry.content ? '\n\n' + entry.content : '');
 
       this.applyTextStyles(stickyNode, entry);
 
-      stickyNode.fills = [{ type: 'SOLID', color: this.generatePastelColor(entry.level) }];
-      stickyNode.x = stickyX + (entry.level * CONFIG.levelIndent);
+      stickyNode.fills = [{ type: 'SOLID', color: sectionColor }];
+
+      if (parentNode) {
+        parentNode.appendChild(stickyNode);
+      }
+      stickies.push(stickyNode);
+
+      stickyNode.x = stickyX;
       stickyNode.y = stickyY;
 
-      figma.currentPage.appendChild(stickyNode);
-      this.nodes.push(stickyNode);
-      createdItems++;
-
       maxRowHeight = Math.max(maxRowHeight, stickyNode.height);
+      maxWidth = Math.max(maxWidth, stickyX + stickyNode.width);
 
       if ((i + 1) % maxCol === 0) {
         stickyX = 0;
-        stickyY += maxRowHeight + CONFIG.stickyPadding;
+        stickyY += maxRowHeight + stickyPadding;
+        totalHeight += maxRowHeight + stickyPadding;
         maxRowHeight = 0;
       } else {
-        stickyX += stickyNode.width + CONFIG.stickyPadding;
+        stickyX += stickyNode.width + stickyPadding;
       }
     }
 
-    return createdItems;
+    totalHeight += maxRowHeight;
+
+    return { width: maxWidth, height: totalHeight, stickies };
   }
 
   getExportData(): ExportData[] {
-    return this.nodes
-      .filter((node): node is StickyNode => node.type === "STICKY")
-      .map(node => ({
-        title: node.name,
-        content: node.text.characters.split('\n\n')[1] || ""
-      }));
-  }
-
-  private flattenJSON(data: any, level: number = 0, parentKey: string = ""): FlatStickyData[] {
-    let result: FlatStickyData[] = [];
-
-    if (typeof data === "object" && data !== null) {
-      if (Array.isArray(data)) {
-        data.forEach((item, index) => {
-          const newParentKey = parentKey ? `${parentKey} - Item ${index + 1}` : `Item ${index + 1}`;
-          result = result.concat(this.flattenJSON(item, level + 1, newParentKey));
-        });
-      } else {
-        Object.entries(data).forEach(([key, value]) => {
-          const newParentKey = parentKey ? `${parentKey} - ${key}` : key;
-          if (typeof value === "object" && value !== null) {
-            result.push({ title: newParentKey, content: "", level });
-            result = result.concat(this.flattenJSON(value, level + 1, newParentKey));
-          } else {
-            result.push({ title: newParentKey, content: String(value), level });
-          }
-        });
+    return this.nodes.map(node => {
+      if (node.type === "SECTION") {
+        return {
+          title: node.name,
+          stickies: node.findChildren(n => n.type === "STICKY").map((stickyNode: StickyNode) => ({
+            title: stickyNode.name,
+            content: stickyNode.text.characters.split('\n\n')[1] || ""
+          }))
+        };
+      } else if (node.type === "STICKY") {
+        return {
+          title: node.name,
+          content: node.text.characters.split('\n\n')[1] || ""
+        };
       }
-    } else {
-      result.push({ title: parentKey, content: String(data), level });
-    }
-
-    return result;
+    }).filter(Boolean);
   }
 
-  private applyTextStyles(stickyNode: StickyNode, entry: FlatStickyData) {
+  private applyTextStyles(stickyNode: StickyNode, entry: StickyData) {
     const titleEndIndex = entry.title.length;
     if (titleEndIndex > 0) {
       stickyNode.text.setRangeFontName(0, titleEndIndex, CONFIG.fonts.medium);
@@ -110,8 +188,8 @@ export class StickyManager {
     }
   }
 
-  private generatePastelColor(level: number): RGB {
-    const hue = (level * CONFIG.colorGeneration.goldenAngle) % 360;
+  private generatePastelColor(index: number): RGB {
+    const hue = (index * CONFIG.colorGeneration.goldenAngle) % 360;
     const saturation = CONFIG.colorGeneration.saturation;
     const lightness = CONFIG.colorGeneration.lightness;
 
